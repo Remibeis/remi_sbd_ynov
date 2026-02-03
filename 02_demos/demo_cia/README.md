@@ -17,6 +17,7 @@ Passphrase :
 - Par défaut : `ChangeMeForExercise` (dans `Main.java`).
 - Pour utiliser la vôtre (session PowerShell) :
   $env:VAULT_PASSPHRASE = 'monpass'
+- Si `VAULT_PASSPHRASE` n'est pas défini, le programme demande la passphrase en saisie interactive (masquée si possible).
 
 Fichiers :
 - `SecureVault.java` : logique de chiffrement (AES/GCM) et backup `.dat.bak`.

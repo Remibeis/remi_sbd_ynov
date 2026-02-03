@@ -13,8 +13,22 @@ public class Main {
             return;
         }
 
-        String pass = System.getenv().getOrDefault("VAULT_PASSPHRASE", DEFAULT_PASSPHRASE);
-        char[] passphrase = pass.toCharArray();
+        // Get passphrase: prefer environment variable, otherwise ask interactively (masked when possible)
+        String envPass = System.getenv("VAULT_PASSPHRASE");
+        char[] passphrase;
+        if (envPass != null && !envPass.isEmpty()) {
+            passphrase = envPass.toCharArray();
+        } else {
+            java.io.Console console = System.console();
+            if (console != null) {
+                passphrase = console.readPassword("Enter vault passphrase: ");
+            } else {
+                // Fallback for environments where Console is not available (IDE)
+                System.out.print("Enter vault passphrase (visible): ");
+                Scanner scanner = new Scanner(System.in);
+                passphrase = scanner.nextLine().toCharArray();
+            }
+        }
 
         SecureVault vault = new SecureVault(Paths.get("vault"));
 
@@ -52,10 +66,15 @@ public class Main {
         } else {
             usage();
         }
+
+        // Zero passphrase in memory for safety
+        if (passphrase != null) {
+            java.util.Arrays.fill(passphrase, '\0');
+        }
     }
 
     private static void usage() {
         System.out.println("Usage:\n  save clientId \"content\"  -> store encrypted+signed report\n  read clientId -> read report (fallback to backup if needed)");
-        System.out.println("Passphrase source: env VAULT_PASSPHRASE or hardcoded default in code");
+        System.out.println("Passphrase source: env VAULT_PASSPHRASE; otherwise you will be prompted interactively (masked when possible).");
     }
 }
