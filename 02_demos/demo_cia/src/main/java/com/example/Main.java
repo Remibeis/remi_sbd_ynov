@@ -1,135 +1,61 @@
 package com.example;
 
-
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
-import java.security.*;
-import java.util.Base64;
+import java.nio.file.Paths;
+import java.util.Scanner;
 
 public class Main {
+    
+    private static final String DEFAULT_PASSPHRASE = "jmlekk";
+
     public static void main(String[] args) throws Exception {
-        System.out.println("╔════════════════════════════════════════════════════════════╗");
-        System.out.println("║           DÉMONSTRATION : TRIADE CIA EN JAVA               ║");
-        System.out.println("╚════════════════════════════════════════════════════════════╝\n");
-
-        demoConfidentiality();
-        demoIntegrity();
-    }
-
-    // ========================================================================
-    // CONFIDENTIALITÉ : Chiffrement AES-256-GCM
-    // ========================================================================
-    public static void demoConfidentiality() throws Exception {
-        System.out.println("┌────────────────────────────────────────────────────────────┐");
-        System.out.println("│              1. CONFIDENTIALITÉ - Chiffrement AES          │");
-        System.out.println("└────────────────────────────────────────────────────────────┘\n");
-
-        String secretMessage = "Données bancaires confidentielles: IBAN FR76 1234 5678 9012";
-        System.out.println("Message original: " + secretMessage);
-
-        // Génération d'une clé AES 256 bits
-        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-        keyGen.init(256);
-        SecretKey secretKey = keyGen.generateKey();
-        System.out.println("Clé AES générée: " + Base64.getEncoder().encodeToString(secretKey.getEncoded()));
-
-        // Chiffrement avec AES-GCM (mode authentifié)
-        byte[] iv = new byte[12]; // 96 bits pour GCM
-        SecureRandom secureRandom = new SecureRandom();
-        secureRandom.nextBytes(iv);
-
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        GCMParameterSpec gcmSpec = new GCMParameterSpec(128, iv); // Tag de 128 bits
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, gcmSpec);
-
-        byte[] encrypted = cipher.doFinal(secretMessage.getBytes("UTF-8"));
-        String encryptedBase64 = Base64.getEncoder().encodeToString(encrypted);
-        System.out.println("Message chiffré: " + encryptedBase64);
-
-        // Déchiffrement
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmSpec);
-        byte[] decrypted = cipher.doFinal(encrypted);
-        String decryptedMessage = new String(decrypted, "UTF-8");
-        System.out.println("Message déchiffré: " + decryptedMessage);
-
-        // Vérification
-        System.out.println("\n[OK] Confidentialité assurée : seul le détenteur de la clé peut lire le message");
-        System.out.println("[OK] Mode GCM : authentification intégrée (détecte les modifications)\n");
-    }
-    // ========================================================================
-    // INTÉGRITÉ : Hachage SHA-256 et Signature Numérique
-    // ========================================================================
-    public static void demoIntegrity() throws Exception {
-        System.out.println("┌────────────────────────────────────────────────────────────┐");
-        System.out.println("│              2. INTÉGRITÉ - Hachage et Signature           │");
-        System.out.println("└────────────────────────────────────────────────────────────┘\n");
-
-        // Partie 1 : Hachage SHA-256
-        System.out.println("--- Vérification d'intégrité avec SHA-256 ---\n");
-
-        String document = "Contrat de vente - Montant: 10000€ - Date: 2024-01-15";
-        System.out.println("Document original: " + document);
-
-        String hashOriginal = calculateSHA256(document);
-        System.out.println("Hash SHA-256: " + hashOriginal);
-
-        // Simulation d'une modification
-        String documentModifie = "Contrat de vente - Montant: 50000€ - Date: 2024-01-15";
-        String hashModifie = calculateSHA256(documentModifie);
-
-        System.out.println("\nDocument modifié: " + documentModifie);
-        System.out.println("Hash modifié: " + hashModifie);
-
-        boolean integriteCompromise = !hashOriginal.equals(hashModifie);
-        System.out.println("\n[ATTENTION] Intégrité compromise: " + integriteCompromise);
-
-        // Partie 2 : Signature Numérique RSA
-        System.out.println("\n--- Signature Numérique RSA ---\n");
-
-        KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("RSA");
-        keyPairGen.initialize(2048);
-        KeyPair keyPair = keyPairGen.generateKeyPair();
-
-        String messageToSign = "Transaction: Virement de 1000€ vers FR76 9876 5432 1098";
-        System.out.println("Message à signer: " + messageToSign);
-
-        // Signature
-        Signature signature = Signature.getInstance("SHA256withRSA");
-        signature.initSign(keyPair.getPrivate());
-        signature.update(messageToSign.getBytes());
-        byte[] digitalSignature = signature.sign();
-        System.out.println("Signature: " + Base64.getEncoder().encodeToString(digitalSignature));
-
-        // Vérification de la signature
-        signature.initVerify(keyPair.getPublic());
-        signature.update(messageToSign.getBytes());
-        boolean isValid = signature.verify(digitalSignature);
-        System.out.println("Signature valide: " + isValid);
-
-        // Tentative de modification
-        String messageFalsifie = "Transaction: Virement de 50000€ vers FR76 9876 5432 1098";
-        signature.initVerify(keyPair.getPublic());
-        signature.update(messageFalsifie.getBytes());
-        boolean isValidAfterTampering = signature.verify(digitalSignature);
-        System.out.println("Signature valide après falsification: " + isValidAfterTampering);
-
-        System.out.println("\n[OK] Intégrité assurée : toute modification est détectée");
-        System.out.println("[OK] Non-répudiation : l'émetteur ne peut nier avoir signé\n");
-    }
-
-    private static String calculateSHA256(String input) throws NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(input.getBytes());
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : hash) {
-            String hex = Integer.toHexString(0xff & b);
-            if (hex.length() == 1) hexString.append('0');
-            hexString.append(hex);
+        if (args.length < 1) {
+            usage();
+            return;
         }
-        return hexString.toString();
+
+        String pass = System.getenv().getOrDefault("VAULT_PASSPHRASE", DEFAULT_PASSPHRASE);
+        char[] passphrase = pass.toCharArray();
+
+        SecureVault vault = new SecureVault(Paths.get("vault"));
+
+        String cmd = args[0];
+        if ("save".equalsIgnoreCase(cmd)) {
+            if (args.length < 3) {
+                System.err.println("Usage: save clientId \"content\"");
+                return;
+            }
+            String clientId = args[1];
+           
+            StringBuilder sb = new StringBuilder();
+            for (int i = 2; i < args.length; i++) {
+                if (i > 2) sb.append(' ');
+                sb.append(args[i]);
+            }
+            String content = sb.toString();
+
+            vault.save(clientId, content, passphrase);
+            System.out.println("[OK] Saved secure report for client: " + clientId);
+        } else if ("read".equalsIgnoreCase(cmd)) {
+            if (args.length != 2) {
+                System.err.println("Usage: read clientId");
+                return;
+            }
+            String clientId = args[1];
+            try {
+                String result = vault.read(clientId, passphrase);
+                System.out.println("--- Report (client=" + clientId + ") ---");
+                System.out.println(result);
+                System.out.println("--- End ---");
+            } catch (Exception e) {
+                System.err.println("[ERROR] Could not read report: " + e.getMessage());
+            }
+        } else {
+            usage();
+        }
     }
 
-
+    private static void usage() {
+        System.out.println("Usage:\n  save clientId \"content\"  -> store encrypted+signed report\n  read clientId -> read report (fallback to backup if needed)");
+        System.out.println("Passphrase source: env VAULT_PASSPHRASE or hardcoded default in code");
+    }
 }

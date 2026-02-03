@@ -35,3 +35,46 @@ Contraintes :
 * Choix du format (binaire ou texte) tant qu’il est reproductible.
 * La clé doit provenir d’un **secret fourni** (ex : passphrase en dur dans le code pour l’exercice, ou argument CLI).
 
+---
+
+## Solution fournie (implémentation)
+
+J'ai ajouté une petite application Java dans `02_demos/demo_cia` :
+
+- `com.example.SecureVault` : logique de stockage chiffré + HMAC + sauvegarde de secours
+- `com.example.Main` : CLI minimal `save clientId "content"` et `read clientId`
+
+Choix techniques (résumé) :
+- Confidentialité : AES-256-GCM (clé dérivée via PBKDF2WithHmacSHA256)
+- Intégrité/Authenticité : HMAC-SHA256 sur (salt || iv || ciphertext)
+- Disponibilité : fichier principal `vault/<clientId>.dat` + copie `vault/<clientId>.dat.bak` (bascule automatique à la lecture)
+- Format : binaire simple. Structure du fichier : MAGIC|VERSION|SALT|IV|CT_LEN|CT|HMAC
+
+Comment tester/run (sans Maven) :
+1. Compiler :
+
+   - Ouvrir un terminal dans le dossier `02_demos/demo_cia` et exécuter :
+
+     javac -d out src/main/java/com/example/*.java
+
+2. Exécuter :
+
+   - Sauvegarder :
+     java -cp out com.example.Main save client1 "Contenu secret du client"
+
+   - Lire :
+     java -cp out com.example.Main read client1
+
+3. Passphrase :
+   - Par défaut l'application utilise la passphrase codée `ChangeMeForExercise`.
+   - Pour utiliser une passphrase différente : définissez la variable d'environnement `VAULT_PASSPHRASE` avant d'exécuter les commandes.
+
+Remarques :
+- Maven n'est pas disponible dans l'environnement d'exécution ici, donc j'ai fourni la commande `javac` pour compiler directement avec le JDK.
+- Le code est volontairement simple et commenté ; il respecte la contrainte "JDK uniquement".
+
+---
+
+Si tu veux, je peux :
+1) ajouter des tests unitaires, 2) fournir un petit script `run.bat`/`run.sh` pour automatiser la compilation/exécution, ou 3) ajouter la gestion d'un mot de passe saisi de façon interactive (masqué) au lieu d'une variable d'environnement.
+
